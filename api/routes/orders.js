@@ -48,13 +48,30 @@ router.post("/", checkAuth, (req, res, next) => {
         });
       }
 
+      if (product.stock < quantity) {
+        return res.status(400).json({
+          message: "Not enough stock available",
+        });
+      }
+
+      // Crear la orden
       const order = new Order({
         _id: new mongoose.Types.ObjectId(),
         quantity: quantity,
         product: productId,
       });
 
-      return order.save();
+      // Actualizar el stock
+      product.stock -= quantity;
+
+      // Verificar si el stock está por debajo del punto de reorden
+      if (product.stock <= product.reorderPoint) {
+        // Aquí deberías agregar la lógica para enviar una notificación
+        console.log("Producto bajo el punto de reorden. Notificación enviada.");
+        // Puedes guardar la notificación en la base de datos o enviarla por email
+      }
+
+      return product.save().then(() => order.save());
     })
     .then((result) => {
       console.log(result);

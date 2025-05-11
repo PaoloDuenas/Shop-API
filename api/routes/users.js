@@ -5,101 +5,119 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/user");
+const checkAuth = require("../middleware/check-auth");
 
 router.post("/signup", (req, res, next) => {
-  User.find({ email: req.body.email })
-    .exec()
-    .then((user) => {
-      if (user.length >= 1) {
-        return res.status(409).json({
-          message: "Mail already exists",
-        });
-      } else {
-        bcrypt.hash(req.body.password, 10, (err, hash) => {
-          if (err) {
-            return res.status(500).json({
-              error: err,
-            });
-          } else {
-            const user = new User({
-              _id: new mongoose.Types.ObjectId(),
-              email: req.body.email,
-              password: hash,
-            });
-            user
-              .save()
-              .then((result) => {
-                console.log(result);
-                res.status(201).json({
-                  message: "User created",
-                });
-              })
-              .catch((err) => {
-                console.log(err);
-                res.status(500).json({
-                  error: err,
-                });
-              });
-          }
-        });
-      }
-    });
-});
+  const { email, password, rol } = req.body;
 
-router.post("/login", (req, res, next) => {
-  User.find({ email: req.body.email })
-    .exec()
-    .then((user) => {
-      if (user.length < 1) {
-        return res.status(401).json({
-          message: "Auth failed",
+  User.findOne({ email })
+    .then((existingUser) => {
+      if (existingUser) {
+        return res.status(409).json({
+          message: "Email already exists",
         });
       }
-      bcrypt.compare(req.body.password, user[0].password, (err, result) => {
-        if (err) {
-          return res.status(401).json({
-            message: "Auth failed",
-          });
-        }
-        if (result) {
-          const token = jwt.sign(
-            {
-              email: user[0].email,
-              userId: user[0]._id,
-            },
-            process.env.JWT_KEY,
-            {
-              expiresIn: "1h",
-            }
-          );
-          return res.status(200).json({
-            message: "Auth successful",
-            token: token
-          });
-        }
-        res.status(401).json({
-          message: "Auth failed",
-        });
+
+      const user = new User({
+        _id: new mongoose.Types.ObjectId(),
+        email: email,
+        password: password, // el hash se hará automáticamente en el middleware
+        rol: rol || "cliente",
       });
+
+      user
+        .save()
+        .then((result) => {
+          res.status(201).json({
+            message: "User created successfully",
+            userId: result._id,
+            email: result.email,
+            rol: result.rol,
+          });
+        })
+        .catch((err) => {
+          res.status(500).json({
+            error: err,
+          });
+        });
+      
     })
     .catch((err) => {
-      console.log(err);
       res.status(500).json({
         error: err,
       });
     });
 });
 
-router.delete("/:userId", (req, res, next) => {
-  User.deleteOne({ _id: req.params.userId })
-    .exec()
-    .then((result) => {
-      res.status(200).json({
-        message: "User is deleted",
+router.post("/login", (req, res, next) => {
+  const { email, password } = req.body;
+
+  User.findOne({ email })
+    .then((user) => {
+      if (!user) {
+        return res.status(401).json({
+          message: "Auth failed: User not found",
+        });
+      }
+
+      // Comparar la contraseña ingresada con el hash de la base de datos usando bcrypt
+      bcrypt.compare(password, user.password, (err, result) => {
+        if (err) {
+          return res.status(401).json({
+            message: "Auth failed: Comparison error",
+          });
+        }
+
+        if (!result) {
+          return res.status(401).json({
+            message: "Auth failed: Invalid password",
+          });
+        }
+
+        // Si la contraseña es correcta, generamos el token
+        const token = jwt.sign(
+          {
+            userId: user._id,
+            email: user.email,
+            rol: user.rol,
+          },
+          process.env.JWT_KEY,
+          { expiresIn: "1h" }
+        );
+
+        res.status(200).json({
+          message: "Auth successful",
+          token: token,
+        });
       });
     })
     .catch((err) => {
-      console.log(err);
+      res.status(500).json({
+        error: err,
+      });
+    });
+});
+
+
+router.delete("/:userId", checkAuth, (req, res, next) => {
+  if (req.userData.rol !== "admin") {
+    return res.status(403).json({
+      message: "Unauthorized access. Only admins can delete users.",
+    });
+  }
+
+  User.deleteOne({ _id: req.params.userId })
+    .then((result) => {
+      if (result.deletedCount === 0) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+      res.status(200).json({
+        message: "User deleted successfully",
+      });
+    })
+    .catch((err) => {
       res.status(500).json({
         error: err,
       });

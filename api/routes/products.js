@@ -3,6 +3,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const multer = require("multer");
 const checkAuth = require("../middleware/check-auth");
+const checkAdmin = require("../middleware/check-admin");
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -64,40 +66,53 @@ router.get("/", checkAuth, (req, res, next) => {
 });
 
 //Agrega producto y genera ID
-router.post("/", checkAuth, upload.single("productImage"), (req, res, next) => {
-  console.log(req.file);
-  const product = new Product({
-    _id: new mongoose.Types.ObjectId(),
-    name: req.body.name,
-    price: req.body.price,
-    productImage: req.file.path,
-  });
+router.post(
+  "/",
+  checkAuth,
+  checkAdmin,
+  upload.single("productImage"),
+  (req, res, next) => {
+    console.log(req.file);
 
-  product
-    .save()
-    .then((result) => {
-      console.log(result);
-      res.status(201).json({
-        message: "Product created successfully",
-        createdProduct: {
-          name: result.name,
-          price: result.price,
-          _id: result._id,
-          productImage: result.productImage,
-          request: {
-            type: "GET",
-            url: "http://localhost:3000/products/" + result._id,
-          },
-        },
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).json({
-        error: err,
-      });
+    // Verificar que los campos requeridos estén presentes en la solicitud
+    const product = new Product({
+      _id: new mongoose.Types.ObjectId(),
+      name: req.body.name,
+      price: req.body.price,
+      productImage: req.file.path,
+      stock: req.body.stock || 0, // Si no se proporciona stock, por defecto será 0
+      reorderPoint: req.body.reorderPoint || 10, // Si no se proporciona reorderPoint, por defecto será 10
     });
-});
+
+    product
+      .save()
+      .then((result) => {
+        console.log(result);
+        res.status(201).json({
+          message: "Product created successfully",
+          createdProduct: {
+            name: result.name,
+            price: result.price,
+            _id: result._id,
+            productImage: result.productImage,
+            stock: result.stock,
+            reorderPoint: result.reorderPoint,
+            request: {
+              type: "GET",
+              url: "http://localhost:3000/products/" + result._id,
+            },
+          },
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        res.status(500).json({
+          error: err,
+        });
+      });
+  }
+);
+
 
 router.get("/:productId", checkAuth, (req, res, next) => {
   const id = req.params.productId;
@@ -127,7 +142,7 @@ router.get("/:productId", checkAuth, (req, res, next) => {
 });
 
 // Actualiza producto por su ID
-router.patch("/:productId", checkAuth, (req, res, next) => {
+router.patch("/:productId", checkAuth, checkAdmin, (req, res, next) => {
   const id = req.params.productId;
   const updateOps = {};
   for (const ops of req.body) {
@@ -153,7 +168,7 @@ router.patch("/:productId", checkAuth, (req, res, next) => {
 });
 
 //Borrar producto y su Id
-router.delete("/:productId", checkAuth, (req, res, next) => {
+router.delete("/:productId", checkAuth, checkAdmin, (req, res, next) => {
   const id = req.params.productId;
   Product.deleteOne({ _id: id })
     .exec()
