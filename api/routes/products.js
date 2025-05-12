@@ -77,14 +77,14 @@ router.post(
   (req, res, next) => {
     console.log(req.file);
 
-    // Verificar que los campos requeridos estén presentes en la solicitud
     const product = new Product({
       _id: new mongoose.Types.ObjectId(),
       name: req.body.name,
       price: req.body.price,
-      productImage: req.file.path,
-      stock: req.body.stock || 0, // Si no se proporciona stock, por defecto será 0
-      reorderPoint: req.body.reorderPoint || 10, // Si no se proporciona reorderPoint, por defecto será 10
+      productImage:
+        req.protocol + "://" + req.get("host") + "/uploads/" + req.file.filename,
+      stock: req.body.stock || 0,
+      reorderPoint: req.body.reorderPoint || 10,
     });
 
     product
