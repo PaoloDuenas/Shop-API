@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const checkAuth = require("../middleware/check-auth");
-
+const Notification = require("../models/notification");
 const Order = require("../models/order");
 const Product = require("../models/product");
 
@@ -36,65 +36,63 @@ router.get("/", checkAuth, (req, res, next) => {
 });
 
 //Postear ordenes, (funcionando)
-router.post("/", checkAuth, (req, res, next) => {
+router.post("/", checkAuth, async (req, res, next) => {
   const productId = req.body.productId;
   const quantity = req.body.quantity;
 
-  Product.findById(productId)
-    .then((product) => {
-      if (!product) {
-        return res.status(404).json({
-          message: "Product not found",
-        });
-      }
+  try {
+    const product = await Product.findById(productId);
 
-      if (product.stock < quantity) {
-        return res.status(400).json({
-          message: "Not enough stock available",
-        });
-      }
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-      // Crear la orden
-      const order = new Order({
-        _id: new mongoose.Types.ObjectId(),
-        quantity: quantity,
-        product: productId,
-      });
+    if (product.stock < quantity) {
+      return res.status(400).json({ message: "Not enough stock available" });
+    }
 
-      // Actualizar el stock
-      product.stock -= quantity;
-
-      // Verificar si el stock está por debajo del punto de reorden
-      if (product.stock <= product.reorderPoint) {
-        // Aquí deberías agregar la lógica para enviar una notificación
-        console.log("Producto bajo el punto de reorden. Notificación enviada.");
-        // Puedes guardar la notificación en la base de datos o enviarla por email
-      }
-
-      return product.save().then(() => order.save());
-    })
-    .then((result) => {
-      console.log(result);
-      res.status(201).json({
-        message: "Order stored",
-        createdOrder: {
-          _id: result._id,
-          product: result.product,
-          quantity: result.quantity,
-        },
-        request: {
-          type: "GET",
-          url: "https://localhost:3000/orders/" + result._id,
-        },
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).json({
-        error: err,
-      });
+    // Crear la orden
+    const order = new Order({
+      _id: new mongoose.Types.ObjectId(),
+      quantity: quantity,
+      product: productId,
     });
+
+    // Actualizar el stock
+    product.stock -= quantity;
+
+    // Crear y guardar la notificación
+    if (product.stock <= product.reorderPoint) {
+      const notification = new Notification({
+        productId: product._id,
+        message: `El stock del producto '${product.name}' está por debajo del punto de reorden.`,
+      });
+
+      await notification.save();
+      console.log("Producto bajo el punto de reorden. Notificación guardada.");
+    }
+
+    await product.save();
+    const savedOrder = await order.save();
+
+    res.status(201).json({
+      message: "Order stored",
+      createdOrder: {
+        _id: savedOrder._id,
+        product: savedOrder.product,
+        quantity: savedOrder.quantity,
+      },
+      request: {
+        type: "GET",
+        url: "http://localhost:3000/orders/" + savedOrder._id,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err });
+  }
 });
+
 
 // Obetener una orden especifica por su ID
 router.get("/:orderId", checkAuth, (req, res, next) => {

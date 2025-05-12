@@ -37,17 +37,19 @@ const Product = require("../models/product");
 //Obtiene lista de productos
 router.get("/", checkAuth, (req, res, next) => {
   Product.find()
-    .select("name price _id productImage")
+    .select("name price _id productImage stock reorderPoint")
     .exec()
     .then((docs) => {
       const response = {
         count: docs.length,
         products: docs.map((doc) => {
           return {
+            _id: doc._id,
             name: doc.name,
             price: doc.price,
             productImage: doc.productImage,
-            _id: doc._id,
+            stock: doc.stock,
+            reorderPoint: doc.reorderPoint,
             request: {
               type: "GET",
               url: "http://localhost:3000/products/" + doc._id,
@@ -64,6 +66,7 @@ router.get("/", checkAuth, (req, res, next) => {
       });
     });
 });
+
 
 //Agrega producto y genera ID
 router.post(
@@ -117,7 +120,7 @@ router.post(
 router.get("/:productId", checkAuth, (req, res, next) => {
   const id = req.params.productId;
   Product.findById(id)
-    .select("name price _id productImage")
+    .select("name price _id productImage stock reorderPoint")
     .exec()
     .then((doc) => {
       console.log("From database", doc);

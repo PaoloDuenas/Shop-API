@@ -1,4 +1,3 @@
-// models/user.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
@@ -14,11 +13,10 @@ const userSchema = mongoose.Schema({
   rol: {
     type: String,
     enum: ["admin", "cliente"],
-    default: "cliente", // todos los nuevos usuarios serán "cliente"
+    default: "cliente",
   },
 });
 
-// Encriptar la contraseña antes de guardarla en la base de datos
 userSchema.pre("save", function (next) {
   if (!this.isModified("password")) return next();
 
