@@ -35,7 +35,7 @@ const upload = multer({
 const Product = require("../models/product");
 
 //Obtiene lista de productos
-router.get("/", checkAuth, (req, res, next) => {
+router.get("/", (req, res, next) => {
   Product.find()
     .select("name price _id productImage stock reorderPoint")
     .exec()
@@ -117,7 +117,7 @@ router.post(
 );
 
 
-router.get("/:productId", checkAuth, (req, res, next) => {
+router.get("/:productId", (req, res, next) => {
   const id = req.params.productId;
   Product.findById(id)
     .select("name price _id productImage stock reorderPoint")
