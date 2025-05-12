@@ -49,53 +49,47 @@ router.post("/signup", (req, res, next) => {
     });
 });
 
-router.post("/login", (req, res, next) => {
+router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
 
-  User.findOne({ email })
-    .then((user) => {
-      if (!user) {
-        return res.status(401).json({
-          message: "Auth failed: User not found",
-        });
-      }
+  try {
+    const user = await User.findOne({ email });
 
-      // Comparar la contraseña ingresada con el hash de la base de datos usando bcrypt
-      bcrypt.compare(password, user.password, (err, result) => {
-        if (err) {
-          return res.status(401).json({
-            message: "Auth failed: Comparison error",
-          });
-        }
-
-        if (!result) {
-          return res.status(401).json({
-            message: "Auth failed: Invalid password",
-          });
-        }
-
-        // Si la contraseña es correcta, generamos el token
-        const token = jwt.sign(
-          {
-            userId: user._id,
-            email: user.email,
-            rol: user.rol,
-          },
-          process.env.JWT_KEY,
-          { expiresIn: "1h" }
-        );
-
-        res.status(200).json({
-          message: "Auth successful",
-          token: token,
-        });
+    if (!user) {
+      return res.status(401).json({
+        message: "Auth failed: User not found",
       });
-    })
-    .catch((err) => {
-      res.status(500).json({
-        error: err,
+    }
+
+    // Comparar la contraseña ingresada con el hash de la base de datos usando bcrypt
+    const result = await bcrypt.compare(password, user.password);
+
+    if (!result) {
+      return res.status(401).json({
+        message: "Auth failed: Invalid password",
       });
+    }
+
+    // Si la contraseña es correcta, generamos el token
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        email: user.email,
+        rol: user.rol,
+      },
+      process.env.JWT_KEY,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({
+      message: "Auth successful",
+      token: token,
     });
+  } catch (err) {
+    res.status(500).json({
+      error: err,
+    });
+  }
 });
 
 
