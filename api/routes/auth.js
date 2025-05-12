@@ -1,4 +1,3 @@
-// routes/auth.js
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
@@ -7,11 +6,10 @@ const mongoose = require("mongoose");
 
 const User = require("../models/user");
 
-// Registro de nuevo usuario (con validación de rol)
+// Registro de nuevo usuario
 router.post("/signup", (req, res, next) => {
   const { email, password, rol } = req.body;
 
-  // Verificar si el usuario ya existe
   User.findOne({ email })
     .then((existingUser) => {
       if (existingUser) {
@@ -20,7 +18,6 @@ router.post("/signup", (req, res, next) => {
         });
       }
 
-      // Cifrar la contraseña
       bcrypt.hash(password, 10, (err, hash) => {
         if (err) {
           return res.status(500).json({
@@ -28,15 +25,13 @@ router.post("/signup", (req, res, next) => {
           });
         }
 
-        // Crear un nuevo usuario con un rol específico
         const user = new User({
           _id: new mongoose.Types.ObjectId(),
           email: email,
-          password: hash,
+          password: hash, 
           rol: rol || "cliente",
         });
 
-        // Guardar el usuario
         user
           .save()
           .then((result) => {
