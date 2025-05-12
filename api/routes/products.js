@@ -47,7 +47,6 @@ router.get("/", (req, res, next) => {
             _id: doc._id,
             name: doc.name,
             price: doc.price,
-            productImage: doc.productImage,
             stock: doc.stock,
             reorderPoint: doc.reorderPoint,
             request: {
@@ -81,8 +80,6 @@ router.post(
       _id: new mongoose.Types.ObjectId(),
       name: req.body.name,
       price: req.body.price,
-      productImage:
-        req.protocol + "://" + req.get("host") + "/uploads/" + req.file.filename,
       stock: req.body.stock || 0,
       reorderPoint: req.body.reorderPoint || 10,
     });
@@ -97,7 +94,6 @@ router.post(
             name: result.name,
             price: result.price,
             _id: result._id,
-            productImage: result.productImage,
             stock: result.stock,
             reorderPoint: result.reorderPoint,
             request: {

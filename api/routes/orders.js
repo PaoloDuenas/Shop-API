@@ -8,7 +8,7 @@ const Product = require("../models/product");
 const checkAdmin = require("../middleware/check-admin");
 
 //Obetener la lista de ordenes
-router.get("/", checkAuth, checkAdmin, (req, res, next) => {
+router.get("/", (req, res, next) => {
   Order.find()
     .select("product quantity _id")
     .populate('product')
@@ -96,7 +96,7 @@ router.post("/", checkAuth, checkAdmin, async (req, res, next) => {
 
 
 // Obetener una orden especifica por su ID
-router.get("/:orderId", checkAuth, checkAdmin, (req, res, next) => {
+router.get("/:orderId", (req, res, next) => {
   const id = req.params.orderId;
   Order.findById(id)
     .select("product quantity _id")
